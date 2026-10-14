@@ -166,7 +166,6 @@ def safe_text(value):
     return html.escape(str(value or ""))
 
 def display_card(title, body, meta=""):
-    # Escape user-provided text before inserting it into HTML.
     st.markdown(
         f'<div class="soft-card"><strong>{safe_text(title)}</strong>'
         + (f'<div class="small-muted">{safe_text(meta)}</div>' if meta else "")
@@ -425,7 +424,6 @@ Be specific to the question. Do not invent facts about the people involved.
                         st.markdown("---")
                         st.markdown("### 🧠 Analysis")
                         st.markdown(answer)
-                        # Save the generated analysis so it remains in the database.
                         run(
                             "INSERT INTO chats(author, role, text, created_at) VALUES (?, ?, ?, ?)",
                             (st.session_state.who, "analysis", "Question: " + question.strip() + "\n\n" + answer.strip(), now_text()),
