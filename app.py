@@ -1,526 +1,128 @@
-from datetime import datetime
-import random
-import streamlit as st
+"""
+                sections = [
+                    "## 1. The core question\nRestate the issue precisely and identify key unknowns.",
+                    f"## 2. Philosophical analysis\nApply the selected lens ({lens}) accurately. Explain tensions and trade-offs.",
+                ]
+                if use_psychology:
+                    sections.append("## 3. Psychology\nDiscuss relevant concepts and plausible explanations, distinguishing evidence from hypotheses.")
+                if use_sociology:
+                    sections.append("## 4. Sociology\nDiscuss relevant social context without stereotyping or assuming details.")
+                sections.extend([
+                    "## 5. Integrated understanding\nConnect perspectives, noting where they agree, differ, or cannot establish a conclusion.",
+                    "## 6. Grounded way forward\nOffer two or three practical options or reflection prompts suited to the question.",
+                    "## 7. One question worth sitting with\nEnd with one specific, open-ended question.",
+                ])
+                prompt = f"""
+QUESTION:
+<question>
+{question}
+</question>
 
-# Optional: Try importing Google GenAI for live AI philosophy & wellness advice
-try:
-  from google import genai
+STYLE: {tone}
 
-  HAS_GENAI = True
-except ImportError:
-  HAS_GENAI = False
+Write in Markdown, following these sections:
+{chr(10).join(sections)}
 
-# 1. Page Configuration
-st.set_page_config(
-    page_title="Our Shared Universe", page_icon="🌸", layout="centered"
-)
+Be specific to the question. Do not invent facts about the people involved.
+"""
+                try:
+                    with st.spinner("Thinking through the question..."):
+                        client = genai.Client(api_key=api_key)
+                        response = client.models.generate_content(
+                            model="gemini-2.5-flash",
+                            contents=prompt,
+                            config={
+                                "system_instruction": system_rules,
+                                "temperature": 0.2,
+                            },
+                        )
+                    answer = getattr(response, "text", None)
+                    if answer and answer.strip():
+                        st.markdown("---")
+                        st.markdown("### 🧠 Analysis")
+                        st.markdown(answer)
+                        # Save the generated analysis so it remains in the database.
+                        run(
+                            "INSERT INTO chats(author, role, text, created_at) VALUES (?, ?, ?, ?)",
+                            (st.session_state.who, "analysis", "Question: " + question.strip() + "\n\n" + answer.strip(), now_text()),
+                        )
+                    else:
+                        st.error("The model returned an empty response. Please try again.")
+                except Exception as exc:
+                    st.error("Gemini could not generate the analysis. Check your key, internet connection, and model availability.")
+                    with st.expander("Technical details for troubleshooting"):
+                        st.code(str(exc))
 
-# 2. Custom Styling (Blending Lina's Pink/Lilies & Youssef's Green/Purple/Blue)
-st.markdown(
-    """
-    <style>
-    .stApp {
-        background-color: #faf4f7;
-        color: #2b2b2b;
-        font-family: 'Helvetica Neue', sans-serif;
-    }
-    h1, h2, h3 {
-        color: #4a2e5d !important; /* Deep Purple */
-    }
-    .lily-card {
-        background-color: #ffffff;
-        padding: 24px;
-        border-radius: 16px;
-        border-left: 6px solid #e27d60; /* Soft Pink/Coral Accent */
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        margin-bottom: 20px;
-    }
-    .youssef-card {
-        background-color: #ffffff;
-        padding: 24px;
-        border-radius: 16px;
-        border-left: 6px solid #72a0c1; /* Calm Blue/Green Accent */
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        margin-bottom: 20px;
-    }
-    .quote-box {
-        background-color: #f3e8f0;
-        padding: 20px;
-        border-radius: 12px;
-        border: 1px solid #e8d7e3;
-        font-style: italic;
-        color: #4a2e5d;
-        margin-bottom: 20px;
-    }
-    .entrance-container {
-        text-align: center;
-        padding: 40px 20px;
-    }
-    </style>
-""",
-    unsafe_allow_html=True,
-)
 
-# 3. Session State Initialization
-if "who" not in st.session_state:
-  st.session_state.who = None
-if "notes" not in st.session_state:
-  st.session_state.notes = [{
-      "author": "Youssef",
-      "text": (
-          "High school crush turned into my favorite reality. Respect &"
-          " empathy always."
-      ),
-      "time": "Foundation",
-  }]
-if "recipes" not in st.session_state:
-  st.session_state.recipes = [{
-      "title": "Post-Workout Magnesium Smoothie",
-      "desc": (
-          "Spinach, banana, almond milk, and dark cocoa for calm energy."
-      ),
-      "added_by": "Lina",
-  }]
-if "songs" not in st.session_state:
-  st.session_state.songs = [{
-      "title": "Our Song of the Universe",
-      "artist": "Timeless",
-      "note": "Plays whenever we talk late at night.",
-  }]
-if "memories" not in st.session_state:
-  st.session_state.memories = [{
-      "title": "The Beginning",
-      "desc": "Back in high school when I first noticed you.",
-      "date": "The Origin",
-  }]
+# ------------------------------------------------------------
+# TAB 4: SONGS + MEMORIES
+# ------------------------------------------------------------
+with tab_media:
+    song_col, memory_col = st.columns(2)
+    with song_col:
+        st.subheader("🎧 Songs")
+        with st.form("song_form", clear_on_submit=True):
+            song_title = st.text_input("Song title")
+            song_artist = st.text_input("Artist")
+            song_note = st.text_area("Why does it matter to you?")
+            song_submit = st.form_submit_button("Save song")
+        if song_submit:
+            if song_title.strip():
+                run(
+                    "INSERT INTO songs(title, artist, note, added_by, created_at) VALUES (?, ?, ?, ?, ?)",
+                    (song_title.strip(), song_artist.strip(), song_note.strip(), st.session_state.who, now_text()),
+                )
+                st.success("Song saved.")
+                st.rerun()
+            else:
+                st.warning("Add a song title first.")
+        for song in rows("SELECT * FROM songs ORDER BY id DESC LIMIT 100"):
+            body = (f"Artist: {song['artist']}\n" if song["artist"] else "") + song["note"]
+            display_card(song["title"], body, f"Added by {song['added_by']} · {song['created_at']}")
+        st.caption("This version saves song details, not uploaded audio files.")
+    with memory_col:
+        st.subheader("📜 Memory timeline")
+        with st.form("memory_form", clear_on_submit=True):
+            memory_title = st.text_input("Memory or milestone")
+            memory_desc = st.text_area("What happened?")
+            memory_date = st.text_input("Date or label", placeholder="e.g. Summer 2024")
+            memory_submit = st.form_submit_button("Save memory")
+        if memory_submit:
+            if memory_title.strip():
+                run(
+                    "INSERT INTO memories(title, description, memory_date, added_by, created_at) VALUES (?, ?, ?, ?, ?)",
+                    (memory_title.strip(), memory_desc.strip(), memory_date.strip() or "A moment to remember", st.session_state.who, now_text()),
+                )
+                st.success("Memory saved.")
+                st.rerun()
+            else:
+                st.warning("Add a memory title first.")
+        for memory in rows("SELECT * FROM memories ORDER BY id DESC LIMIT 100"):
+            display_card(memory["title"], memory["description"], f"{memory['memory_date']} · Added by {memory['added_by']}")
 
-# ==========================================
-# 4. ENTRANCE GATE (Pink Cube vs Green Cube)
-# ==========================================
-if st.session_state.who is None:
-  st.markdown(
-      """
-        <div class="entrance-container">
-            <h1>🌱 Our Shared Universe</h1>
-            <p style="color: #666; font-size: 1.1rem;">A private sanctuary built on mutual respect, empathy, and meaning.</p>
-            <hr style="width: 50%; margin: 20px auto; border: 0; border-top: 1px solid #ddd;">
-            <h3>Who is entering today?</h3>
-        </div>
-    """,
-      unsafe_allow_html=True,
-  )
 
-  col1, col2 = st.columns(2)
-
-  with col1:
-    st.markdown(
-        """
-        <div style="background-color: #fce8f3; padding: 30px; border-radius: 16px; text-align: center; border: 2px solid #f3a6d2;">
-            <h2 style="color: #c75b9b !important;">🌸 Lina</h2>
-            <p>Soft pinks, lilies, and nutritional care.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    if st.button("Enter as Lina 🌸", use_container_width=True):
-      st.session_state.who = "Lina"
-      st.rerun()
-
-  with col2:
-    st.markdown(
-        """
-        <div style="background-color: #e3f2e6; padding: 30px; border-radius: 16px; text-align: center; border: 2px solid #a3d9a5;">
-            <h2 style="color: #3b7a57 !important;">🌿 Youssef</h2>
-            <p>Earthy greens, philosophy, and quiet depth.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    if st.button("Enter as Youssef 🌿", use_container_width=True):
-      st.session_state.who = "Youssef"
-      st.rerun()
-
-else:
-  # Header showing who is logged in
-  user_color = "#c75b9b" if st.session_state.who == "Lina" else "#3b7a57"
-  st.markdown(
-      f"""
-        <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px;">
-            <span style="font-weight: bold; color: {user_color}; font-size: 1.2rem;">Welcome back, {st.session_state.who} 💜</span>
-    """,
-      unsafe_allow_html=True,
-  )
-  if st.button("Switch User"):
-    st.session_state.who = None
-    st.rerun()
-  st.markdown("</div>", unsafe_allow_html=True)
-
-  # Main Navigation Tabs
-  tab_core, tab_nutrition, tab_solver, tab_media = st.tabs([
-      "✨ The Core & Notes",
-      "🥗 Nutrition & Care Alleviation",
-      "🕊️ AI Philosophy Solver",
-      "🎶 Songs & Memories",
-  ])
-
-  # ==========================================
-  # TAB 1: THE CORE & NOTES
-  # ==========================================
-  with tab_core:
-    st.markdown('<div class="lily-card">', unsafe_allow_html=True)
-    st.subheader("Our Core Pillars")
-    st.write(
-        "Built on mutual respect, deep empathy, and crafting our own meaning in"
-        " this universe."
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown("### 💭 Leave a Note for Each Other")
-    with st.form("note_form"):
-      new_note = st.text_area(
-          "Write something sweet, a thought, or an existential realization:"
-      )
-      submitted = st.form_submit_button("Post Note")
-      if submitted and new_note:
-        st.session_state.notes.insert(
-            0,
-            {
-                "author": st.session_state.who,
-                "text": new_note,
-                "time": datetime.now().strftime("%b %d, %H:%M"),
-            },
+# ------------------------------------------------------------
+# TAB 5: PERSISTENT SHARED CHAT
+# ------------------------------------------------------------
+with tab_chat:
+    st.markdown('<div class="lily-card"><h3>💬 Shared Chat</h3><p>Messages are saved in a local SQLite database, so they survive normal page refreshes and app reruns.</p></div>', unsafe_allow_html=True)
+    chat_rows = rows("SELECT * FROM chats WHERE role = 'message' ORDER BY id DESC LIMIT 100")
+    for item in reversed(chat_rows):
+        st.chat_message("user" if item["author"] == st.session_state.who else "assistant").write(
+            f"**{item['author']} · {item['created_at']}**\n\n{item['text']}"
         )
-        st.success("Note pinned to our board! 🌸")
-
-    st.markdown("### Recent Notes & Messages")
-    for note in st.session_state.notes:
-      st.markdown(
-          f"""
-            <div style="background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid #6b4c7a;">
-                <strong>{note['author']}</strong> <span style="font-size: 0.8rem; color: #888;">({note['time']})</span>
-                <p style="margin-top: 5px;">{note['text']}</p>
-            </div>
-            """,
-          unsafe_allow_html=True,
-      )
-
-  # ==========================================
-  # TAB 2: NUTRITION & CARE ALLEVIATION
-  # ==========================================
-  with tab_nutrition:
-    st.markdown('<div class="youssef-card">', unsafe_allow_html=True)
-    st.subheader("🥗 Nourish & Care Hub")
-    st.write(
-        "Tailored nutrition insights, soothing wellness rituals, and gentle"
-        " strategies for physical and emotional well-being (cramps, fatigue,"
-        " burnout, or daily energy)."
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown("#### 🩺 Physical & Emotional Relief Guide")
-    relief_topic = st.selectbox(
-        "What support or alleviation do you need right now?",
-        [
-            "Choose a topic...",
-            "Period Cramps & Muscle Tension",
-            "Exhaustion & Brain Fog",
-            "Anxiety / Stress Overload",
-            "Deep Sleep & Recovery",
-        ],
-    )
-
-    if relief_topic != "Choose a topic...":
-      if relief_topic == "Period Cramps & Muscle Tension":
-        st.info("🌿 **Nutritional & Care Strategy for Cramps:**")
-        st.write(
-            "- **Magnesium-rich foods:** Dark chocolate, pumpkin seeds, and"
-            " spinach help relax uterine muscles."
-        )
-        st.write(
-            "- **Anti-inflammatory warmth:** Ginger and turmeric tea paired"
-            " with a warm compress."
-        )
-        st.write(
-            "- **Gentle Movement:** Light stretching and zero pressure to do"
-            " heavy tasks today."
-        )
-      elif relief_topic == "Exhaustion & Brain Fog":
-        st.info("⚡ **Energy & Focus Restoration:**")
-        st.write(
-            "- **Complex Carbohydrates & Protein:** Pairing berries with Greek"
-            " yogurt or nuts to stabilize blood sugar."
-        )
-        st.write(
-            "- **Hydration Check:** Often fatigue stems from electrolyte"
-            " imbalance—add a pinch of sea salt and lemon to water."
-        )
-        st.write(
-            "- **The Philosophy Break:** Step away from screens for 15 minutes"
-            " and breathe."
-        )
-      elif relief_topic == "Anxiety / Stress Overload":
-        st.info("🧘 **Calming the Nervous System:**")
-        st.write(
-            "- **Adaptogens / Chamomile:** Chamomile or Ashwagandha tea to lower"
-            " cortisol."
-        )
-        st.write("- **Box Breathing:** 4 seconds in, 4 hold, 4 out, 4 hold.")
-      elif relief_topic == "Deep Sleep & Recovery":
-        st.info("🌙 **Rest Rituals:**")
-        st.write(
-            "- **Tart Cherry Juice or Warm Milk:** Natural sources of melatonin"
-            " and tryptophan."
-        )
-        st.write(
-            "- **Digital Sunset:** Dimming lights 30 minutes before sleep."
-        )
-
-    st.markdown("---")
-    st.markdown("### 🍲 Shared Recipe Vault")
-    with st.form("recipe_form"):
-      r_title = st.text_input("Recipe / Meal Name")
-      r_desc = st.text_area("Ingredients & Care Notes")
-      r_submit = st.form_submit_button("Save Recipe")
-      if r_submit and r_title:
-        st.session_state.recipes.append({
-            "title": r_title,
-            "desc": r_desc,
-            "added_by": st.session_state.who,
-        })
-        st.success("Recipe saved into our kitchen vault!")
-
-    for r in st.session_state.recipes:
-      st.markdown(
-          f"""
-            <div style="background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid #e27d60;">
-                <strong>{r['title']}</strong> <span style="font-size: 0.8rem; color: #888;">(Added by {r['added_by']})</span>
-                <p style="margin-top: 5px;">{r['desc']}</p>
-            </div>
-            """,
-          unsafe_allow_html=True,
-      )
-
-  # ==========================================
-  # TAB 3: DEDICATED PHILOSOPHY ENGINE (UPGRADED)
-  # ==========================================
-  with tab_solver:
-    st.markdown('<div class="lily-card">', unsafe_allow_html=True)
-    st.subheader("🕊️ The Dedicated Philosophy & Existential Engine")
-    st.write(
-        "An AI prompt-engineered exclusively as a master of philosophy. Enter"
-        " any tension or question below to break it down through timeless"
-        " wisdom."
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    philosophy_quotes = [
-        {
-            "quote": (
-                "We do not encounter ourselves accidentally. We build our"
-                " meaning through how we care for one another."
-            ),
-            "school": "Existentialism (Sartre-inspired)",
-        },
-        {
-            "quote": (
-                "Between stimulus and response there is a space. In that space"
-                " is our power to choose our response."
-            ),
-            "school": "Stoicism (Viktor Frankl)",
-        },
-        {
-            "quote": (
-                "The ultimate test of relationship is not agreeing on"
-                " everything, but walking through disagreement with absolute"
-                " mutual respect."
-            ),
-            "school": "Modern Ethics",
-        },
-        {
-            "quote": (
-                "Water is fluid, soft, and yielding. Yet water will wear away"
-                " rock, which is rigid and cannot yield."
-            ),
-            "school": "Taoism (Lao Tzu)",
-        },
-    ]
-
-    problem_input = st.text_area(
-        "What philosophical question, life hurdle, or relationship tension are"
-        " we examining today?"
-    )
-
-    col_lens1, col_lens2 = st.columns(2)
-    with col_lens1:
-      philosopher_focus = st.selectbox(
-          "Primary Philosophical Lens",
-          [
-              "Integrated (All Schools)",
-              "Existentialism (Sartre / Camus - Creating Meaning)",
-              "Stoicism (Aurelius / Frankl - Inner Calm & Control)",
-              "Eastern Philosophy (Lao Tzu / Balance & Flow)",
-          ],
-      )
-    with col_lens2:
-      tone_focus = st.selectbox(
-          "Engine Tone",
-          ["Deep & Reflective", "Grounding & Practical", "Poetic & Warm"],
-      )
-
-    if st.button("Consult the Philosophy AI Engine 🔮", use_container_width=True):
-      if problem_input:
-        selected_quote = random.choice(philosophy_quotes)
-
-        st.markdown(
-            f"""
-                <div class="quote-box">
-                    "{selected_quote['quote']}"<br>
-                    <div style="text-align: right; font-size: 0.85rem; margin-top: 8px; color: #6b4c7a;">— <em>{selected_quote['school']}</em></div>
-                </div>
-                """,
-            unsafe_allow_html=True,
-        )
-
-        ai_analysis = ""
-        if HAS_GENAI and "GEMINI_API_KEY" in st.secrets:
-          try:
-            client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-
-            # Structured prompt for consistent, non-random, high-value philosophical output
-            prompt = f"""
-                        You are a world-class master of philosophy, existential psychology, and relationship dynamics. 
-                        You are speaking directly to Youssef and Lina, who have shared a deep bond since high school, built on mutual respect, empathy, and philosophical growth.
-
-                        They are analyzing this specific situation/tension: "{problem_input}"
-                        Selected Philosophical Lens: {philosopher_focus}
-                        Desired Tone: {tone_focus}
-
-                        Provide a structured, profound, and deeply thoughtful response using EXACTLY this format:
-
-                        ### 🔍 Lens Breakdown
-                        (Explain how the chosen philosopher or school views this exact core issue. Keep it sharp and insightful.)
-
-                        ### 💡 The Deeper Meaning
-                        (Analyze why this tension is arising between them right now, honoring their shared history and long-term bond.)
-
-                        ### 🌱 Grounded Path Forward
-                        (Give 2-3 concrete, actionable, and emotionally grounded steps they can take together right now.)
-
-                        Do not sound like a generic chatbot. Be specific, structured, and deeply empathetic.
-                        """
-            response = client.models.generate_content(
-                model="gemini-2.5-flash", contents=prompt
+    with st.form("chat_form", clear_on_submit=True):
+        message = st.text_area("Write a message for each other", height=90)
+        send = st.form_submit_button("Send message 💌")
+    if send:
+        if message.strip():
+            run(
+                "INSERT INTO chats(author, role, text, created_at) VALUES (?, ?, ?, ?)",
+                (st.session_state.who, "message", message.strip(), now_text()),
             )
-            ai_analysis = response.text
-          except Exception:
-            ai_analysis = None
+            st.rerun()
+        else:
+            st.warning("Write a message first.")
 
-        if not ai_analysis:
-          ai_analysis = f"""
-                    ### 🔍 Lens Breakdown
-                    When looking at '{problem_input}' through the lens of **{philosopher_focus}**, remember that friction is simply two minds learning to find harmony in a complex reality.
-                    
-                    ### 💡 The Deeper Meaning
-                    Human relationships are the ultimate canvas where we create our own meaning. Your bond since high school is proof that you know how to weather change together.
-                    
-                    ### 🌱 Grounded Path Forward
-                    - **Strip away ego:** Treat this as a shared puzzle to solve side-by-side.
-                    - **Lean on empathy:** Focus on deep listening and mutual respect.
-                    """
-
-        st.markdown("### 🏛️ Engine Analysis & Guidance")
-        st.markdown(
-            f"""
-                <div style="background: white; padding: 20px; border-radius: 12px; border-left: 5px solid #4a2e5d; line-height: 1.6;">
-                {ai_analysis}
-                </div>
-                """,
-            unsafe_allow_html=True,
-        )
-      else:
-        st.warning(
-            "Please type a question or tension above before consulting the"
-            " engine."
-        )
-
-  # ==========================================
-  # TAB 4: INTERACTIVE SONGS & MUSIC VAULT
-  # ==========================================
-  with tab_media:
-    st.markdown('<div class="youssef-card">', unsafe_allow_html=True)
-    st.subheader("🎶 Interactive Music Vault & 📸 Memory Timeline")
-    st.write(
-        "Upload audio files or share track links so you can listen to each"
-        " other's music taste directly inside our sanctuary."
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    col_song, col_mem = st.columns(2)
-
-    with col_song:
-      st.markdown("#### 🎧 Share & Listen to Songs")
-
-      uploaded_file = st.file_uploader(
-          "Upload an audio file (.mp3, .wav)", type=["mp3", "wav"]
-      )
-      song_title_input = st.text_input(
-          "Song Name / Artist", key="upload_title"
-      )
-      why_input = st.text_input("Why this song?", key="upload_why")
-
-      if st.button("Save & Share Track 🎵"):
-        if uploaded_file is not None or song_title_input:
-          new_track = {
-              "title": (
-                  song_title_input
-                  if song_title_input
-                  else uploaded_file.name
-              ),
-              "note": why_input if why_input else "Added to our playlist",
-              "added_by": st.session_state.who,
-              "audio_bytes": (
-                  uploaded_file.read() if uploaded_file else None
-              ),
-          }
-          st.session_state.songs.insert(0, new_track)
-          st.success("Track uploaded to our vault!")
-          st.rerun()
-
-      st.markdown("---")
-      st.markdown("##### 🔊 Our Shared Tracks")
-
-      for s in st.session_state.songs:
-        st.markdown(
-            f"""
-                <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #c75b9b;">
-                    🎶 <strong>{s.get('title', 'Untitled')}</strong> <span style="font-size: 0.8rem; color: #888;">(Added by {s.get('added_by', 'Us')})</span><br>
-                    <span style="font-size: 0.85rem; color: #666;">{s.get('note', '')}</span>
-                </div>
-                """,
-            unsafe_allow_html=True,
-        )
-
-        if s.get("audio_bytes"):
-          st.audio(s["audio_bytes"], format="audio/mp3")
-
-    with col_mem:
-      st.markdown("#### 📜 Memory Timeline")
-      with st.form("mem_form"):
-        m_title = st.text_input("Milestone / Memory Title")
-        m_desc = st.text_area("Short description")
-        m_sub = st.form_submit_button("Add Memory")
-        if m_sub and m_title:
-          st.session_state.memories.append(
-              {"title": m_title, "desc": m_desc, "date": "Recent"}
-          )
-          st.success("Memory saved!")
-
-      for m in st.session_state.memories:
-        st.markdown(
-            f"""
-                <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #72a0c1;">
-                    ✨ <strong>{m['title']}</strong><br><span style="font-size: 0.85rem; color: #666;">{m['desc']}</span>
-                </div>
-                """,
-            unsafe_allow_html=True,
-        )
+st.divider()
+st.caption("Our Shared Universe · Built with care. Back up the file our_shared_universe.db regularly; local storage is not a cloud sync service.")
