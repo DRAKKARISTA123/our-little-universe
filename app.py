@@ -296,33 +296,52 @@ else:
             else:
                 st.warning("Please type a question or tension above before consulting the engine.")
 
+
     # ==========================================
-    # TAB 4: SONGS & MEMORIES
+    # TAB 4: INTERACTIVE SONGS & MUSIC VAULT
     # ==========================================
     with tab_media:
         st.markdown('<div class="youssef-card">', unsafe_allow_html=True)
-        st.subheader("🎶 Soundtrack & 📸 Memory Vault")
-        st.write("The soundtrack of us and our timeline from high school crush to right now.")
+        st.subheader("🎶 Interactive Music Vault & 📸 Memory Timeline")
+        st.write("Upload audio files or share track links so you can listen to each other's music taste directly inside our sanctuary.")
         st.markdown('</div>', unsafe_allow_html=True)
 
         col_song, col_mem = st.columns(2)
 
         with col_song:
-            st.markdown("#### 🎵 Saved Songs")
-            with st.form("song_form"):
-                s_title = st.text_input("Song Title & Artist")
-                s_note = st.text_input("Why this song?")
-                s_sub = st.form_submit_button("Add Song")
-                if s_sub and s_title:
-                    st.session_state.songs.append({"title": s_title, "note": s_note})
-                    st.success("Song added!")
+            st.markdown("#### 🎧 Share & Listen to Songs")
+            
+            # File Uploader so she/you can upload MP3s directly
+            uploaded_file = st.file_uploader("Upload an audio file (.mp3, .wav)", type=["mp3", "wav"])
+            song_title_input = st.text_input("Song Name / Artist", key="upload_title")
+            why_input = st.text_input("Why this song?", key="upload_why")
+            
+            if st.button("Save & Share Track 🎵"):
+                if uploaded_file is not None or song_title_input:
+                    new_track = {
+                        "title": song_title_input if song_title_input else uploaded_file.name,
+                        "note": why_input if why_input else "Added to our playlist",
+                        "added_by": st.session_state.who,
+                        "audio_bytes": uploaded_file.read() if uploaded_file else None
+                    }
+                    st.session_state.songs.insert(0, new_track)
+                    st.success("Track uploaded to our vault!")
+                    st.rerun()
 
+            st.markdown("---")
+            st.markdown("##### 🔊 Our Shared Tracks")
+            
             for s in st.session_state.songs:
                 st.markdown(f"""
-                <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 8px;">
-                    🎶 <strong>{s['title']}</strong><br><span style="font-size: 0.85rem; color: #666;">{s['note']}</span>
+                <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #c75b9b;">
+                    🎶 <strong>{s.get('title', 'Untitled')}</strong> <span style="font-size: 0.8rem; color: #888;">(Added by {s.get('added_by', 'Us')})</span><br>
+                    <span style="font-size: 0.85rem; color: #666;">{s.get('note', '')}</span>
                 </div>
                 """, unsafe_allow_html=True)
+                
+                # If an actual audio file was uploaded, render a playable audio bar!
+                if s.get("audio_bytes"):
+                    st.audio(s["audio_bytes"], format="audio/mp3")
 
         with col_mem:
             st.markdown("#### 📜 Memory Timeline")
@@ -336,7 +355,7 @@ else:
 
             for m in st.session_state.memories:
                 st.markdown(f"""
-                <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 8px;">
+                <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #72a0c1;">
                     ✨ <strong>{m['title']}</strong><br><span style="font-size: 0.85rem; color: #666;">{m['desc']}</span>
                 </div>
                 """, unsafe_allow_html=True)
