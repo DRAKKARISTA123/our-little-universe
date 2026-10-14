@@ -300,166 +300,148 @@ else:
           unsafe_allow_html=True,
       )
 
+  # ==========================================
+  # TAB 3: DEDICATED PHILOSOPHY ENGINE (UPGRADED)
+  # ==========================================
+  with tab_solver:
+    st.markdown('<div class="lily-card">', unsafe_allow_html=True)
+    st.subheader("🕊️ The Dedicated Philosophy & Existential Engine")
+    st.write(
+        "An AI prompt-engineered exclusively as a master of philosophy. Enter"
+        " any tension or question below to break it down through timeless"
+        " wisdom."
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# ==========================================
-    # TAB 3: DEDICATED PHILOSOPHY ENGINE
-    # ==========================================
-    with tab_solver:
-      st.markdown('<div class="lily-card">', unsafe_allow_html=True)
-      st.subheader("🕊️ The Dedicated Philosophy & Existential Engine")
-      st.write(
-          "An AI prompt-engineered exclusively as a master of philosophy. Enter"
-          " any tension or question below to break it down through timeless"
-          " wisdom."
+    philosophy_quotes = [
+        {
+            "quote": (
+                "We do not encounter ourselves accidentally. We build our"
+                " meaning through how we care for one another."
+            ),
+            "school": "Existentialism (Sartre-inspired)",
+        },
+        {
+            "quote": (
+                "Between stimulus and response there is a space. In that space"
+                " is our power to choose our response."
+            ),
+            "school": "Stoicism (Viktor Frankl)",
+        },
+        {
+            "quote": (
+                "The ultimate test of relationship is not agreeing on"
+                " everything, but walking through disagreement with absolute"
+                " mutual respect."
+            ),
+            "school": "Modern Ethics",
+        },
+        {
+            "quote": (
+                "Water is fluid, soft, and yielding. Yet water will wear away"
+                " rock, which is rigid and cannot yield."
+            ),
+            "school": "Taoism (Lao Tzu)",
+        },
+    ]
+
+    problem_input = st.text_area(
+        "What philosophical question, life hurdle, or relationship tension are"
+        " we examining today?"
+    )
+
+    col_lens1, col_lens2 = st.columns(2)
+    with col_lens1:
+      philosopher_focus = st.selectbox(
+          "Primary Philosophical Lens",
+          [
+              "Integrated (All Schools)",
+              "Existentialism (Sartre / Camus - Creating Meaning)",
+              "Stoicism (Aurelius / Frankl - Inner Calm & Control)",
+              "Eastern Philosophy (Lao Tzu / Balance & Flow)",
+          ],
       )
-      st.markdown("</div>", unsafe_allow_html=True)
-
-      philosophy_quotes = [
-          {
-              "quote": (
-                  "We do not encounter ourselves accidentally. We build our"
-                  " meaning through how we care for one another."
-              ),
-              "school": "Existentialism (Sartre-inspired)",
-          },
-          {
-              "quote": (
-                  "Between stimulus and response there is a space. In that space"
-                  " is our power to choose our response."
-              ),
-              "school": "Stoicism (Viktor Frankl)",
-          },
-          {
-              "quote": (
-                  "The ultimate test of relationship is not agreeing on"
-                  " everything, but walking through disagreement with absolute"
-                  " mutual respect."
-              ),
-              "school": "Modern Ethics",
-          },
-          {
-              "quote": (
-                  "Water is fluid, soft, and yielding. Yet water will wear away"
-                  " rock, which is rigid and cannot yield."
-              ),
-              "school": "Taoism (Lao Tzu)",
-          },
-          {
-              "quote": (
-                  "To be deeply understood by someone who loves you is a profound"
-                  " anchor in an indifferent universe."
-              ),
-              "school": "Philosophical Romanticism",
-          },
-          {
-              "quote": (
-                  "Man is condemned to be free; because once thrown into the"
-                  " world, he is responsible for everything he does."
-              ),
-              "school": "Jean-Paul Sartre",
-          },
-      ]
-
-      problem_input = st.text_area(
-          "What philosophical question, life hurdle, or relationship tension are"
-          " we examining today?"
+    with col_lens2:
+      tone_focus = st.selectbox(
+          "Engine Tone",
+          ["Deep & Reflective", "Grounding & Practical", "Poetic & Warm"],
       )
 
-      col_lens1, col_lens2 = st.columns(2)
-      with col_lens1:
-        philosopher_focus = st.selectbox(
-            "Primary Philosophical Lens",
-            [
-                "Integrated (All Schools)",
-                "Existentialism (Sartre / Camus - Creating Meaning)",
-                "Stoicism (Aurelius / Frankl - Inner Calm & Control)",
-                "Eastern Philosophy (Lao Tzu / Balance & Flow)",
-            ],
-        )
-      with col_lens2:
-        tone_focus = st.selectbox(
-            "Engine Tone",
-            ["Deep & Reflective", "Grounding & Practical", "Poetic & Warm"],
-        )
+    if st.button("Consult the Philosophy AI Engine 🔮", use_container_width=True):
+      if problem_input:
+        selected_quote = random.choice(philosophy_quotes)
 
-      if st.button(
-          "Consult the Philosophy AI Engine 🔮", use_container_width=True
-      ):
-        if problem_input:
-          selected_quote = random.choice(philosophy_quotes)
-
-          st.markdown(
-              f"""
+        st.markdown(
+            f"""
                 <div class="quote-box">
                     "{selected_quote['quote']}"<br>
                     <div style="text-align: right; font-size: 0.85rem; margin-top: 8px; color: #6b4c7a;">— <em>{selected_quote['school']}</em></div>
                 </div>
                 """,
-              unsafe_allow_html=True,
-          )
+            unsafe_allow_html=True,
+        )
 
-          ai_analysis = ""
-          if HAS_GENAI and "GEMINI_API_KEY" in st.secrets:
-            try:
-              client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+        ai_analysis = ""
+        if HAS_GENAI and "GEMINI_API_KEY" in st.secrets:
+          try:
+            client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
-              # Much stricter, highly structured prompt to prevent random/fluffy answers
-              prompt = f"""
-                            You are a world-class master of philosophy, existential psychology, and relationship dynamics. 
-                            You are speaking directly to Youssef and Lina, who have shared a deep bond since high school, built on mutual respect, empathy, and philosophical growth.
+            # Structured prompt for consistent, non-random, high-value philosophical output
+            prompt = f"""
+                        You are a world-class master of philosophy, existential psychology, and relationship dynamics. 
+                        You are speaking directly to Youssef and Lina, who have shared a deep bond since high school, built on mutual respect, empathy, and philosophical growth.
 
-                            They are analyzing this specific situation/tension: "{problem_input}"
-                            Selected Philosophical Lens: {philosopher_focus}
-                            Desired Tone: {tone_focus}
+                        They are analyzing this specific situation/tension: "{problem_input}"
+                        Selected Philosophical Lens: {philosopher_focus}
+                        Desired Tone: {tone_focus}
 
-                            Provide a structured, profound, and deeply thoughtful response using EXACTLY this format:
+                        Provide a structured, profound, and deeply thoughtful response using EXACTLY this format:
 
-                            ### 🔍 Lens Breakdown
-                            (Explain how the chosen philosopher or school views this exact core issue. Keep it sharp and insightful.)
+                        ### 🔍 Lens Breakdown
+                        (Explain how the chosen philosopher or school views this exact core issue. Keep it sharp and insightful.)
 
-                            ### 💡 The Deeper Meaning
-                            (Analyze why this tension is arising between them right now, honoring their shared history and long-term bond.)
+                        ### 💡 The Deeper Meaning
+                        (Analyze why this tension is arising between them right now, honoring their shared history and long-term bond.)
 
-                            ### 🌱 Grounded Path Forward
-                            (Give 2-3 concrete, actionable, and emotionally grounded steps they can take together right now.)
+                        ### 🌱 Grounded Path Forward
+                        (Give 2-3 concrete, actionable, and emotionally grounded steps they can take together right now.)
 
-                            Do not sound like a generic chatbot. Be specific, poetic yet practical, and avoid clichés.
-                            """
+                        Do not sound like a generic chatbot. Be specific, structured, and deeply empathetic.
+                        """
+            response = client.models.generate_content(
+                model="gemini-2.5-flash", contents=prompt
+            )
+            ai_analysis = response.text
+          except Exception:
+            ai_analysis = None
 
-              response = client.models.generate_content(
-                  model="gemini-2.5-flash", contents=prompt
-              )
-              ai_analysis = response.text
-            except Exception:
-              ai_analysis = None
-
-          if not ai_analysis:
-            ai_analysis = f"""
+        if not ai_analysis:
+          ai_analysis = f"""
                     ### 🔍 Lens Breakdown
-                    When looking at '{problem_input}' through the lens of **{philosopher_focus}**, remember that friction is simply the mind attempting to find harmony in a complex reality.
+                    When looking at '{problem_input}' through the lens of **{philosopher_focus}**, remember that friction is simply two minds learning to find harmony in a complex reality.
                     
                     ### 💡 The Deeper Meaning
-                    Human relationships are the ultimate canvas where we create our own meaning. Your shared history since high school is proof that you know how to weather change together.
+                    Human relationships are the ultimate canvas where we create our own meaning. Your bond since high school is proof that you know how to weather change together.
                     
                     ### 🌱 Grounded Path Forward
-                    - **Strip away ego:** View the problem as something outside of yourselves that you are solving side-by-side.
-                    - **Lean on empathy:** Remember your core pillars of absolute respect.
+                    - **Strip away ego:** Treat this as a shared puzzle to solve side-by-side.
+                    - **Lean on empathy:** Focus on deep listening and mutual respect.
                     """
 
-          st.markdown("### 🏛️ Engine Analysis & Guidance")
-          st.markdown(
-              f"""
+        st.markdown("### 🏛️ Engine Analysis & Guidance")
+        st.markdown(
+            f"""
                 <div style="background: white; padding: 20px; border-radius: 12px; border-left: 5px solid #4a2e5d; line-height: 1.6;">
                 {ai_analysis}
                 </div>
                 """,
-              unsafe_allow_html=True,
-          )
-        else:
-          st.warning(
-              "Please type a question or tension above before consulting the"
-              " engine."
-          )
+            unsafe_allow_html=True,
+        )
+      else:
+        st.warning(
+            "Please type a question or tension above before consulting the"
+            " engine."
+        )
 
   # ==========================================
   # TAB 4: INTERACTIVE SONGS & MUSIC VAULT
@@ -478,7 +460,6 @@ else:
     with col_song:
       st.markdown("#### 🎧 Share & Listen to Songs")
 
-      # File Uploader so she/you can upload MP3s directly
       uploaded_file = st.file_uploader(
           "Upload an audio file (.mp3, .wav)", type=["mp3", "wav"]
       )
@@ -519,7 +500,6 @@ else:
             unsafe_allow_html=True,
         )
 
-        # If an actual audio file was uploaded, render a playable audio bar!
         if s.get("audio_bytes"):
           st.audio(s["audio_bytes"], format="audio/mp3")
 
