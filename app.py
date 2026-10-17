@@ -1,9 +1,13 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
+import hmac
 import html
+import random
+import time
 import sqlite3
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 try:
     from google import genai
@@ -23,6 +27,17 @@ st.set_page_config(
 
 APP_DIR = Path(__file__).resolve().parent
 DB_PATH = APP_DIR / "our_shared_universe.db"
+PHOTOS_DIR = APP_DIR / "photos"
+
+# ---- EDIT THESE ----------------------------------------------
+START_DATE = None            # e.g. date(2023, 6, 14) -> turns on the "time together" counter
+SPOTIFY_TRACK_ID = ""        # the ID from open.spotify.com/track/<ID>
+STORY_TITLE = "Our Love Story"
+STORY_PARAGRAPHS = [
+    "It started in high school, when I first noticed you.",
+    "Write the next part of your story here. Add as many paragraphs as you like.",
+]
+# --------------------------------------------------------------
 
 
 def db_connect():
@@ -152,8 +167,32 @@ h1, h2, h3 { color: #573c63 !important; }
     margin-bottom: 10px;
 }
 .small-muted { color: #786d7c; font-size: .88rem; }
+.hero { text-align:center; padding:28px 12px 8px; }
+.hero h1 { font-size:2.3rem; margin:6px 0; }
+.counter { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:16px 0 8px; }
+.counter div { background:white; border:1px solid #f1dce8; border-radius:14px; padding:12px 18px; min-width:74px; box-shadow:0 4px 14px rgba(75,43,74,.06); }
+.counter b { display:block; font-size:1.7rem; color:#b64d88; }
+.counter span { font-size:.8rem; color:#786d7c; }
+.hearts { position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:0; }
+.hearts span { position:absolute; bottom:-40px; opacity:0; animation:floatUp linear infinite; }
+@keyframes floatUp {
+  0% { transform:translateY(0) scale(.8); opacity:0; }
+  10% { opacity:.55; }
+  100% { transform:translateY(-115vh) scale(1.3); opacity:0; }
+}
 </style>
 """, unsafe_allow_html=True)
+
+random.seed(7)
+st.markdown(
+    '<div class="hearts">' + "".join(
+        f'<span style="left:{random.randint(2,96)}%;font-size:{random.randint(14,30)}px;'
+        f'animation-duration:{random.randint(9,18)}s;animation-delay:{random.randint(0,12)}s">'
+        f'{random.choice(["💗","🌸","💕","🌿","✨"])}</span>'
+        for _ in range(14)
+    ) + "</div>",
+    unsafe_allow_html=True,
+)
 
 
 # ------------------------------------------------------------
@@ -161,6 +200,17 @@ h1, h2, h3 { color: #573c63 !important; }
 # ------------------------------------------------------------
 if "who" not in st.session_state:
     st.session_state.who = None
+
+def time_together(start):
+    today = date.today()
+    y, m, d = today.year - start.year, today.month - start.month, today.day - start.day
+    if d < 0:
+        m -= 1
+        d += (today.replace(day=1) - timedelta(days=1)).day
+    if m < 0:
+        y -= 1
+        m += 12
+    return y, m, d, (today - start).days
 
 def safe_text(value):
     return html.escape(str(value or ""))
@@ -177,6 +227,35 @@ def display_card(title, body, meta=""):
 # ------------------------------------------------------------
 # ENTRANCE
 # ------------------------------------------------------------
+def require_passcode():
+    """Locks the whole app behind a passcode kept in Streamlit secrets (never in the code)."""
+    try:
+        expected = str(st.secrets.get("APP_PASSCODE", ""))
+    except Exception:
+        expected = ""
+    if not expected:
+        st.error("This app is locked until APP_PASSCODE is set in your Streamlit secrets.")
+        st.stop()
+    if st.session_state.get("unlocked"):
+        return
+    st.markdown(
+        '<div class="hero"><div style="font-size:2.2rem">🔒 🌸</div><h1>Our Shared Universe</h1>'
+        '<p style="color:#766979">Enter your passcode to come in.</p></div>',
+        unsafe_allow_html=True,
+    )
+    with st.form("unlock_form"):
+        attempt = st.text_input("Passcode", type="password")
+        go = st.form_submit_button("Unlock")
+    if go:
+        if hmac.compare_digest(attempt.encode(), expected.encode()):
+            st.session_state.unlocked = True
+            st.rerun()
+        time.sleep(1.5)
+        st.error("That passcode isn't right.")
+    st.stop()
+
+require_passcode()
+
 if st.session_state.who is None:
     st.markdown("""
     <div style="text-align:center;padding:35px 10px 20px">
@@ -222,13 +301,57 @@ with c_switch:
         st.session_state.who = None
         st.rerun()
 
-tab_core, tab_nutrition, tab_solver, tab_media, tab_chat = st.tabs([
+tab_story, tab_core, tab_nutrition, tab_solver, tab_media, tab_chat = st.tabs([
+    "💞 Our Story",
     "✨ Our Core & Notes",
     "🥗 Nutrition & Care",
     "🕊️ Philosophy Lab",
     "🎶 Songs & Memories",
     "💬 Shared Chat",
 ])
+
+
+# ------------------------------------------------------------
+# TAB 0: OUR STORY (hero, counter, song, photos)
+# ------------------------------------------------------------
+with tab_story:
+    counter_html = ""
+    if START_DATE:
+        yy, mm, dd, total = time_together(START_DATE)
+        counter_html = (
+            '<div class="counter">'
+            f'<div><b>{yy}</b><span>years</span></div><div><b>{mm}</b><span>months</span></div>'
+            f'<div><b>{dd}</b><span>days</span></div><div><b>{total}</b><span>days of us</span></div></div>'
+        )
+    st.markdown(
+        '<div class="hero"><div style="font-size:2.2rem">🌸 💞 🌿</div>'
+        '<h1>Lina &amp; Youssef</h1><p style="color:#766979">'
+        'From a high school crush to my favorite reality.</p>' + counter_html + '</div>',
+        unsafe_allow_html=True,
+    )
+    paragraphs = "".join(f"<p>{safe_text(t)}</p>" for t in STORY_PARAGRAPHS)
+    st.markdown(f'<div class="lily-card"><h3>{safe_text(STORY_TITLE)}</h3>{paragraphs}</div>', unsafe_allow_html=True)
+
+    if SPOTIFY_TRACK_ID.isalnum():
+        st.subheader("🎵 Our song")
+        embed_url = f"https://open.spotify.com/embed/track/{SPOTIFY_TRACK_ID}"
+        if hasattr(st, "iframe"):
+            st.iframe(embed_url, height=160)
+        else:  # older Streamlit versions
+            components.html(
+                f'<iframe src="{embed_url}" width="100%" height="152" frameborder="0" '
+                'allow="encrypted-media" style="border-radius:12px"></iframe>',
+                height=160,
+            )
+
+    st.subheader("📸 Our photos")
+    photos = sorted(p for p in PHOTOS_DIR.glob("*") if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}) if PHOTOS_DIR.exists() else []
+    if photos:
+        cols = st.columns(3)
+        for i, photo in enumerate(photos):
+            cols[i % 3].image(str(photo), use_container_width=True)
+    else:
+        st.info("Add your photos to the photos/ folder next to app.py and they will appear here.")
 
 
 # ------------------------------------------------------------
